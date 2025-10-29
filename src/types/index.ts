@@ -39,6 +39,7 @@ export interface StreamEvent {
 export interface ConversationRequest {
   audio: string; // base64 encoded PCM audio
   sessionId: string;
+  model?: string; // Optional OpenAI model selection
 }
 
 export interface AudioConfig {

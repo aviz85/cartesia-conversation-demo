@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { LatencyPanel } from './components/LatencyPanel';
+import { ModelPicker } from './components/ModelPicker';
 import { AudioRecorder, AudioPlayer } from './services/audioService';
 import { ConversationClient } from './services/apiClient';
 import { LatencyMetrics, Message } from './types';
@@ -7,6 +8,7 @@ import { LatencyMetrics, Message } from './types';
 function App() {
   const [status, setStatus] = useState<'disconnected' | 'ready' | 'recording' | 'processing'>('disconnected');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini');
   const [metrics, setMetrics] = useState<LatencyMetrics>({
     recording: 0,
     stt: 0,
@@ -34,9 +36,11 @@ function App() {
         await playerRef.current.initialize();
       }
 
-      // Initialize API client
+      // Initialize API client with selected model
       if (!clientRef.current) {
-        clientRef.current = new ConversationClient();
+        clientRef.current = new ConversationClient(selectedModel);
+      } else {
+        clientRef.current.setModel(selectedModel);
       }
 
       addSystemMessage('All systems ready! Click "Start Recording" to speak.');
@@ -204,8 +208,19 @@ function App() {
       }}>
         <h1 style={{ textAlign: 'center', marginBottom: '10px' }}>🎙️ Voice Conversation AI</h1>
         <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px', fontSize: '14px' }}>
-          Powered by Cartesia.ai & OpenAI GPT-4o-mini (Hebrew)
+          Powered by Cartesia.ai & OpenAI (Hebrew)
         </p>
+
+        <ModelPicker
+          selectedModel={selectedModel}
+          onModelChange={(model) => {
+            setSelectedModel(model);
+            if (clientRef.current) {
+              clientRef.current.setModel(model);
+            }
+          }}
+          disabled={status === 'recording' || status === 'processing'}
+        />
 
         <div style={{
           ...getStatusStyle(),

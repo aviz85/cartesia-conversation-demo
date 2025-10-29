@@ -2,15 +2,22 @@ import { StreamEvent, ConversationRequest } from '../types';
 
 export class ConversationClient {
   private sessionId: string;
+  private model: string | undefined;
 
-  constructor() {
+  constructor(model?: string) {
     this.sessionId = `session_${Date.now()}`;
+    this.model = model;
+  }
+
+  setModel(model: string): void {
+    this.model = model;
   }
 
   async *sendAudio(audioBase64: string): AsyncGenerator<StreamEvent> {
     const request: ConversationRequest = {
       audio: audioBase64,
       sessionId: this.sessionId,
+      model: this.model,
     };
 
     const response = await fetch('/api/conversation', {

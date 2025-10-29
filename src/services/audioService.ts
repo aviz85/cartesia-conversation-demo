@@ -55,7 +55,7 @@ export class AudioRecorder {
     this.workletNode.port.onmessage = (event) => {
       const float32Data = event.data as Float32Array;
       const pcmData = this.float32ToPCM(float32Data);
-      const base64 = this.arrayBufferToBase64(pcmData.buffer);
+      const base64 = this.arrayBufferToBase64(pcmData.buffer as ArrayBuffer);
       this.onAudioData?.(base64);
     };
 
