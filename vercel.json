@@ -5,8 +5,10 @@
   "installCommand": "npm install",
   "functions": {
     "api/conversation.ts": {
-      "maxDuration": 60,
-      "runtime": "edge"
+      "maxDuration": 60
+    },
+    "api/models.ts": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
