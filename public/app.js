@@ -6,6 +6,17 @@ let isRecording = false;
 let audioQueue = [];
 let isPlaying = false;
 
+// Latency tracking
+let latencyMetrics = {
+  recording: 0,
+  stt: 0,
+  llm: 0,
+  llm_first_token: 0,
+  tts: 0,
+  tts_first_byte: 0,
+  end_to_end: 0,
+};
+
 // UI Elements
 const statusEl = document.getElementById('status');
 const conversationEl = document.getElementById('conversation');
@@ -13,10 +24,53 @@ const connectBtn = document.getElementById('connectBtn');
 const recordBtn = document.getElementById('recordBtn');
 const visualizerBars = document.querySelectorAll('.bar');
 
+// Latency UI Elements
+const latencyPanelEl = document.getElementById('latencyPanel');
+const e2eLatencyEl = document.getElementById('e2eLatency');
+const recordingLatencyEl = document.getElementById('recordingLatency');
+const sttLatencyEl = document.getElementById('sttLatency');
+const llmLatencyEl = document.getElementById('llmLatency');
+const llmFirstTokenEl = document.getElementById('llmFirstToken');
+const ttsLatencyEl = document.getElementById('ttsLatency');
+const ttsFirstByteEl = document.getElementById('ttsFirstByte');
+
 // Update status display
 function updateStatus(status, className) {
   statusEl.textContent = status;
   statusEl.className = `status ${className}`;
+}
+
+// Update latency display
+function updateLatencyDisplay(stage, duration) {
+  latencyMetrics[stage] = duration;
+
+  // Update individual metrics
+  if (stage === 'recording') {
+    recordingLatencyEl.textContent = `${duration}ms`;
+  } else if (stage === 'stt') {
+    sttLatencyEl.textContent = `${duration}ms`;
+  } else if (stage === 'llm') {
+    llmLatencyEl.textContent = `${duration}ms`;
+  } else if (stage === 'llm_first_token') {
+    llmFirstTokenEl.textContent = `${duration}ms`;
+  } else if (stage === 'tts') {
+    ttsLatencyEl.textContent = `${duration}ms`;
+  } else if (stage === 'tts_first_byte') {
+    ttsFirstByteEl.textContent = `${duration}ms`;
+  } else if (stage === 'end_to_end') {
+    e2eLatencyEl.textContent = `${duration}ms`;
+    // Highlight E2E with color coding
+    if (duration < 3000) {
+      e2eLatencyEl.style.color = '#27ae60'; // Green
+    } else if (duration < 5000) {
+      e2eLatencyEl.style.color = '#f39c12'; // Orange
+    } else {
+      e2eLatencyEl.style.color = '#e74c3c'; // Red
+    }
+  }
+
+  // Show latency panel
+  latencyPanelEl.style.display = 'block';
 }
 
 // Add message to conversation
@@ -43,6 +97,23 @@ function addMessage(role, text) {
 // Clear conversation
 function clearConversation() {
   conversationEl.innerHTML = '<div class="message system"><div class="text">Conversation cleared</div></div>';
+  // Reset latency display
+  latencyMetrics = {
+    recording: 0,
+    stt: 0,
+    llm: 0,
+    llm_first_token: 0,
+    tts: 0,
+    tts_first_byte: 0,
+    end_to_end: 0,
+  };
+  e2eLatencyEl.textContent = '0ms';
+  recordingLatencyEl.textContent = '0ms';
+  sttLatencyEl.textContent = '0ms';
+  llmLatencyEl.textContent = '0ms';
+  llmFirstTokenEl.textContent = '0ms';
+  ttsLatencyEl.textContent = '0ms';
+  ttsFirstByteEl.textContent = '0ms';
 }
 
 // Audio visualizer
@@ -124,6 +195,17 @@ async function connect() {
           console.log('Audio stream complete');
           break;
 
+        case 'latency':
+          // Update latency metrics
+          console.log(`⏱️ ${data.stage}: ${data.duration}ms`);
+          updateLatencyDisplay(data.stage, data.duration);
+
+          // If end-to-end, also log breakdown
+          if (data.breakdown) {
+            console.log('📊 Latency Breakdown:', data.breakdown);
+          }
+          break;
+
         case 'error':
           console.error('Server error:', data.message);
           addMessage('system', `Error: ${data.message}`);
@@ -167,6 +249,7 @@ async function initAudio() {
       channelCount: 1,
       echoCancellation: true,
       noiseSuppression: true,
+      autoGainControl: true,
     },
   });
 
@@ -236,6 +319,11 @@ async function toggleRecording() {
       recordBtn.innerHTML = '<span class="icon">⏹️</span> Stop Recording';
       recordBtn.classList.remove('btn-success');
       recordBtn.classList.add('btn-danger');
+
+      // Notify server recording started
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'audio_start' }));
+      }
     } catch (error) {
       console.error('Failed to start recording:', error);
       addMessage('system', 'Microphone access denied. Please allow microphone access and try again.');
@@ -320,6 +408,3 @@ function arrayBufferToBase64(buffer) {
   }
   return btoa(binary);
 }
-
-// Auto-connect on load (optional)
-// window.addEventListener('load', connect);
